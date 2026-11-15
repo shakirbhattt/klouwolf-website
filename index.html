@@ -120,6 +120,8 @@ input,textarea,select{font:inherit;color:var(--ink);background:var(--glass);bord
 select option{color:#0A1428}
 textarea{min-height:100px;resize:vertical}
 .contact h3{font-size:34px;margin-bottom:14px;position:relative}.contact p{color:var(--muted);position:relative}
+.fs{min-height:1.5em;margin:0;font-size:15px}.fs.ok{color:var(--ok)}.fs.err{color:#ff7a7a}
+button:disabled{opacity:.6;cursor:not-allowed}
 footer{margin-top:90px;padding:30px 0 50px;border-top:1px solid var(--edge);color:var(--muted);font-size:14px}
 footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
 </style>
@@ -200,13 +202,15 @@ footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
     <p>Tell us your stack and your biggest infrastructure headache. We reply within one business day with a free review.</p>
     <div class="cta"><a class="btn" href="mailto:hello@kloudwolf.com">hello@kloudwolf.com</a></div>
     <div class="contact">
-      <div><h3>Start the conversation</h3><p>Fill in the form and your email app will open with the message ready to send.</p></div>
+      <div><h3>Start the conversation</h3><p>Fill in the form and your message comes straight to our inbox. We reply within one business day.</p></div>
       <form id="f">
         <label>Your name<input name="n" required autocomplete="name"></label>
         <label>Work email<input name="e" type="email" required autocomplete="email"></label>
         <label>What do you need?<select name="s"><option>Cloud infrastructure</option><option>DevOps consulting</option><option>Kubernetes</option><option>CI/CD automation</option><option>Monitoring & observability</option><option>DevSecOps</option><option>Cloud migration</option><option>Managed infrastructure</option><option>Production support</option></select></label>
         <label>Tell us more<textarea name="m"></textarea></label>
+        <input type="checkbox" name="botcheck" tabindex="-1" autocomplete="off" style="display:none" aria-hidden="true">
         <button class="btn" type="submit">Send request</button>
+        <p class="fs" id="fs" role="status" aria-live="polite"></p>
       </form>
     </div>
   </div>
@@ -248,10 +252,22 @@ document.getElementById('bento').addEventListener('pointermove',function(e){
   c.style.setProperty('--x',(e.clientX-b.left)+'px');c.style.setProperty('--y',(e.clientY-b.top)+'px');
 });
 document.getElementById('y').textContent=new Date().getFullYear();
-document.getElementById('f').addEventListener('submit',function(ev){
-  ev.preventDefault();var f=ev.target;
-  var body='Name: '+f.n.value+'\nEmail: '+f.e.value+'\nNeed: '+f.s.value+'\n\n'+f.m.value;
-  location.href='mailto:hello@kloudwolf.com?subject='+encodeURIComponent('KloudWolf enquiry from '+f.n.value)+'&body='+encodeURIComponent(body);
+document.getElementById('f').addEventListener('submit',async function(ev){
+  ev.preventDefault();
+  var f=ev.target,b=f.querySelector('button[type=submit]'),s=document.getElementById('fs');
+  if(f.botcheck.checked)return;
+  b.disabled=true;b.textContent='Sending…';s.className='fs';s.textContent='';
+  try{
+    var r=await fetch('https://api.web3forms.com/submit',{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},
+      body:JSON.stringify({access_key:'98f2ab55-02c1-4623-a921-55053082402a',subject:'New KloudWolf enquiry: '+f.s.value,from_name:'KloudWolf Website',name:f.n.value,email:f.e.value,service:f.s.value,message:f.m.value})});
+    var j=await r.json();
+    if(!j.success)throw new Error(j.message||'failed');
+    f.reset();s.className='fs ok';s.textContent='Thank you! We’ve received your request and will reply within one business day.';
+    b.textContent='Sent ✓';setTimeout(function(){b.disabled=false;b.textContent='Send request'},8000);
+  }catch(e){
+    s.className='fs err';s.textContent='Sorry, something went wrong. Please email hello@kloudwolf.com instead.';
+    b.disabled=false;b.textContent='Send request';
+  }
 });
 </script>
 </body>
